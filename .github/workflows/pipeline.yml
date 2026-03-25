@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      MLFLOW_TRACKING_URI: file:./mlruns
+      MLFLOW_TRACKING_URI: sqlite:///mlflow.db
 
     steps:
       - name: Checkout repository
@@ -44,27 +44,23 @@ jobs:
           FORCE_FAIL: ${{ github.event.inputs.force_fail }}
         run: python train.py
 
-      - name: Verify generated files
-        run: |
-          echo "=== model_info.txt ==="
-          cat model_info.txt
-          echo "=== current directory ==="
-          ls
-          echo "=== mlruns exists? ==="
-          if [ -d mlruns ]; then
-            echo "mlruns found"
-          else
-            echo "mlruns not found"
-            exit 1
-          fi
+      - name: Show model_info.txt
+        run: cat model_info.txt
 
-      - name: Upload pipeline state artifact
+      - name: Show files
+        run: ls -la
+
+      - name: Upload model_info artifact
         uses: actions/upload-artifact@v4
         with:
-          name: pipeline-state
-          path: |
-            model_info.txt
-            mlruns
+          name: model-info
+          path: model_info.txt
+
+      - name: Upload mlflow database artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mlflow-db
+          path: mlflow.db
 
   deploy:
     name: Deployment Job
@@ -72,7 +68,7 @@ jobs:
     needs: validate
 
     env:
-      MLFLOW_TRACKING_URI: file:./mlruns
+      MLFLOW_TRACKING_URI: sqlite:///mlflow.db
 
     steps:
       - name: Checkout repository
@@ -88,25 +84,22 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Download pipeline state artifact
+      - name: Download model_info artifact
         uses: actions/download-artifact@v4
         with:
-          name: pipeline-state
+          name: model-info
           path: .
 
-      - name: Verify downloaded files
+      - name: Download mlflow database artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: mlflow-db
+          path: .
+
+      - name: Show downloaded files
         run: |
-          echo "=== model_info.txt ==="
+          ls -la
           cat model_info.txt
-          echo "=== current directory ==="
-          ls
-          echo "=== mlruns exists? ==="
-          if [ -d mlruns ]; then
-            echo "mlruns found"
-          else
-            echo "mlruns not found"
-            exit 1
-          fi
 
       - name: Check accuracy threshold
         run: python check_threshold.py

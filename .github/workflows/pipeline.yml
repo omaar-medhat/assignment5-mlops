@@ -44,23 +44,27 @@ jobs:
           FORCE_FAIL: ${{ github.event.inputs.force_fail }}
         run: python train.py
 
-      - name: Show model_info.txt
-        run: cat model_info.txt
+      - name: Verify generated files
+        run: |
+          echo "=== model_info.txt ==="
+          cat model_info.txt
+          echo "=== current directory ==="
+          ls
+          echo "=== mlruns exists? ==="
+          if [ -d mlruns ]; then
+            echo "mlruns found"
+          else
+            echo "mlruns not found"
+            exit 1
+          fi
 
-      - name: Show mlruns structure
-        run: ls -R mlruns
-
-      - name: Upload model_info artifact
+      - name: Upload pipeline state artifact
         uses: actions/upload-artifact@v4
         with:
-          name: model-info
-          path: model_info.txt
-
-      - name: Upload mlruns artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: mlruns-artifact
-          path: mlruns
+          name: pipeline-state
+          path: |
+            model_info.txt
+            mlruns
 
   deploy:
     name: Deployment Job
@@ -84,23 +88,25 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Download model_info artifact
+      - name: Download pipeline state artifact
         uses: actions/download-artifact@v4
         with:
-          name: model-info
+          name: pipeline-state
           path: .
 
-      - name: Download mlruns artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: mlruns-artifact
-          path: .
-
-      - name: Show model_info.txt
-        run: cat model_info.txt
-
-      - name: Show mlruns structure
-        run: ls -R mlruns
+      - name: Verify downloaded files
+        run: |
+          echo "=== model_info.txt ==="
+          cat model_info.txt
+          echo "=== current directory ==="
+          ls
+          echo "=== mlruns exists? ==="
+          if [ -d mlruns ]; then
+            echo "mlruns found"
+          else
+            echo "mlruns not found"
+            exit 1
+          fi
 
       - name: Check accuracy threshold
         run: python check_threshold.py

@@ -34,14 +34,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Pull data with DVC
-        run: dvc pull
+      - name: DVC step
+        run: |
+          echo "Simulating DVC pull"
+          dvc version
 
       - name: Train model
         env:
           FORCE_FAIL: ${{ github.event.inputs.force_fail }}
-        run: |
-          python train.py
+        run: python train.py
 
       - name: Show model_info.txt
         run: cat model_info.txt

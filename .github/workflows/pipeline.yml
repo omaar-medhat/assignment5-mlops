@@ -40,16 +40,26 @@ jobs:
       - name: Train model
         env:
           FORCE_FAIL: ${{ github.event.inputs.force_fail }}
-        run: python train.py
+        run: |
+          python train.py
 
       - name: Show model_info.txt
         run: cat model_info.txt
 
-      - name: Upload model info artifact
+      - name: Show mlruns structure
+        run: ls -R mlruns
+
+      - name: Upload model_info artifact
         uses: actions/upload-artifact@v4
         with:
           name: model-info
           path: model_info.txt
+
+      - name: Upload mlruns artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mlruns-artifact
+          path: mlruns
 
   deploy:
     name: Deployment Job
@@ -57,7 +67,7 @@ jobs:
     needs: validate
 
     env:
-      MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+      MLFLOW_TRACKING_URI: file:./mlruns
 
     steps:
       - name: Checkout repository
@@ -73,13 +83,23 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Download model info artifact
+      - name: Download model_info artifact
         uses: actions/download-artifact@v4
         with:
           name: model-info
+          path: .
+
+      - name: Download mlruns artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: mlruns-artifact
+          path: mlruns
 
       - name: Show model_info.txt
         run: cat model_info.txt
+
+      - name: Show mlruns structure
+        run: ls -R mlruns
 
       - name: Check accuracy threshold
         run: python check_threshold.py
@@ -89,3 +109,7 @@ jobs:
         run: |
           echo "Building Docker image for Run ID: $(cat model_info.txt)"
           docker build --build-arg RUN_ID=$(cat model_info.txt) -t mock-model:latest .
+
+      - name: Deployment complete
+        if: success()
+        run: echo "Deployment completed successfully"
